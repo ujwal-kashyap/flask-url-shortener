@@ -1,8 +1,33 @@
 
+# Python
 __pycache__/
 *.py[cod]
-venv/
+*.so
+
+# Virtual environments
 .venv/
+venv/
+ENV/
+
+# Environment variables and secrets
 .env
+.env.*
+
+# Flask and databases
 instance/
 *.db
+*.sqlite
+*.sqlite3
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# Editors
+.vscode/
