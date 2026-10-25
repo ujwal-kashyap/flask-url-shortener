@@ -2,6 +2,7 @@ from flask import Flask,request,jsonify,redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import shortuuid
+from urllib.parse import urlparse
 app=Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"]="sqlite:///urlshortner.db"
 db=SQLAlchemy(app)
@@ -15,20 +16,34 @@ class Url(db.Model):
             return f"({self.id}-{self.original_url})"
 with app.app_context():
     db.create_all()
+
 @app.post("/shorten")
 def shorten():
-    data=request.get_json()
-    original_url=data.get("url")
-    if not original_url:
-        return jsonify({"error":"url is required"}),400
+    data=request.get_json(silent=True) or {}
+    original_url=data.get("url", "")
+    if not isinstance(original_url, str) or not original_url.strip():
+        return jsonify({"error": "URL is required"}), 400
+    original_url =original_url.strip()
+    parsed_url=urlparse(original_url)
+    if (
+        parsed_url.scheme not in ("http", "https")
+        or not parsed_url.hostname
+        or "." not in parsed_url.hostname
+    ):
+        return jsonify({"error": "Invalid URL"}), 400
     short_code=shortuuid.uuid()[:6]
-    new_url=Url(original_url=original_url,
-                    short_code=short_code)
+    new_url = Url(
+        original_url=original_url,
+        short_code=short_code
+    )
     db.session.add(new_url)
     db.session.commit()
-    return jsonify ({"message":"url recived",
-                 "original_url":original_url,
-                 "short_code":short_code})
+    return jsonify({
+        "message": "URL received",
+        "original_url": original_url,
+        "short_code": short_code
+    }), 201
+
 @app.get("/<short_code>")
 def redirect_to_url(short_code):
     url=Url.query.filter_by(short_code=short_code).first()
@@ -46,11 +61,25 @@ def get_all_url():
             "id":url.id,
             "original_url":url.original_url,
             "short_code":url.short_code,
-            "created_at":url.created_at,
+            "created_at":url.created_at.isoformat(),
             "click_count": url.click_count
         }
         for url in urls
     ])
+@app.get("/analytics")
+def analytics():
+    total_urls=Url.query.count()
+    total_clicks=db.session.query(db.func.sum(Url.click_count)).scalar() or 0
+    most_click=Url.query.order_by(Url.click_count.desc()).first()
+    return jsonify({"total_clicks":total_clicks,
+                    "total_urls":total_urls,
+                    "most_click":({
+                         "short_code":most_click.short_code,
+                         "original url":most_click.original_url,
+                         "click count":
+                         most_click.click_count}
+                         if most_click else None)}),200
+                    
 if __name__=="__main__":
     app.run(debug=True,port=3434)
     
