@@ -1,6 +1,6 @@
 from flask import Flask,request,jsonify,redirect
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime,timezone
 import shortuuid
 from urllib.parse import urlparse
 app=Flask(__name__)
@@ -10,7 +10,7 @@ class Url(db.Model):
     id=db.Column(db.Integer,primary_key=True)
     original_url=db.Column(db.String,nullable=True)
     short_code=db.Column(db.String,nullable=True,unique=True)
-    created_at=db.Column(db.DateTime,default=datetime.utcnow)
+    created_at=db.Column(db.DateTime,default=lambda:datetime.now(timezone.utc))
     click_count=db.Column(db.Integer,default=0)
     def __repr__(self):
             return f"({self.id}-{self.original_url})"
