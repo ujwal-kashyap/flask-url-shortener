@@ -1,8 +1,21 @@
+import os
+os.environ["TESTING"]="1"
 import pytest
-from app import app,db,Url
-def test_shorten_without_url():
+from app import app, db, Url
+TEST_DB = "sqlite:///test.db"
+@pytest.fixture(autouse=True)
+def setup_test_db():
     app.config["TESTING"]=True
-    app.config["SQLALCHEMY_DATABASE_URI"]="sqlite:///urlshortner.db"
+    app.config["SQLALCHEMY_DATABASE_URI"]=TEST_DB
+    with app.app_context():
+        db.drop_all()
+        db.create_all()
+        yield
+        db.session.remove()
+        db.drop_all()
+def test_shorten_without_url():
+   
+   
     with app.test_client() as client:
         response=client.post("/shorten",json={})
         assert response.status_code==400
@@ -19,12 +32,20 @@ def test_redirect_to_url():
         assert response.json['message']=="short url not found"
 def test_redirect_to_url_success():
     with app.app_context():
-        url=Url.query.filter_by(short_code="mSesk6").first()
-        assert url is not None
-        with app.test_client() as client:
-            response=client.get("/mSesk6",follow_redirects=False)
-            assert response.status_code==302
-            assert response.location==url.original_url
+        url = Url(
+            original_url="https://instagram.com",
+            short_code="mSesk6"
+        )
+        db.session.add(url)
+        db.session.commit()
+        original_url=url.original_url
+    with app.test_client() as client:
+        response = client.get(
+            "/mSesk6",
+            follow_redirects=False
+        )
+        assert response.status_code==302
+        assert response.location==original_url
 def test_urls():
     with app.test_client() as client:
         response=client.get("/urls")
