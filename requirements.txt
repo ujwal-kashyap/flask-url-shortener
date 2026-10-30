@@ -1,4 +1,4 @@
-
 Flask
 Flask-SQLAlchemy
 shortuuid
+pytest
