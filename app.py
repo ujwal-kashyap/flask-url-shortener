@@ -2,9 +2,14 @@ from flask import Flask,request,jsonify,redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime,timezone
 import shortuuid
+import os
 from urllib.parse import urlparse
 app=Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"]="sqlite:///urlshortner.db"
+if os.environ.get("TESTING")=="1":
+    app.config["SQLALCHEMY_DATABASE_URI"]="sqlite:///test.db"
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"]="sqlite:///urlshortner.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"]=False
 db=SQLAlchemy(app)
 class Url(db.Model):
     id=db.Column(db.Integer,primary_key=True)
@@ -14,8 +19,7 @@ class Url(db.Model):
     click_count=db.Column(db.Integer,default=0)
     def __repr__(self):
             return f"({self.id}-{self.original_url})"
-with app.app_context():
-    db.create_all()
+
 
 @app.post("/shorten")
 def shorten():
@@ -81,5 +85,7 @@ def analytics():
                          if most_click else None)}),200
                     
 if __name__=="__main__":
+    with app.app_context():
+        db.create_all()
     app.run(debug=True,port=3434)
     
